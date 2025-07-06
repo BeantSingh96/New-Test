@@ -1,0 +1,169 @@
+
+abstract class BaseFragment<VB : ViewBinding>(
+    private val inflate: (LayoutInflater, ViewGroup?, Boolean) -> VB
+) : Fragment() {
+
+    private var _binding: VB? = null
+    protected val binding get() = _binding!!
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        _binding = inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupViews()
+    }
+
+    abstract fun setupViews()
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}
+
+
+@AndroidEntryPoint
+class LoginFragment : BaseFragment<FragmentLoginBinding>(FragmentLoginBinding::inflate) {
+
+    override fun setupViews() {}
+}
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/auth_graph">
+
+    <include
+        app:graph="@navigation/auth_graph" />
+
+    <include
+        app:graph="@navigation/main_graph"/>
+
+</navigation>
+
+/////////////////////////////////////////////////////
+
+applyStyledText(
+                context = requireContext(),
+                textView = binding.noAccountText,
+                parts = listOf(
+                    SpannableUtils.StyledText(
+                        text = getString(R.string.don_t_have_an_account),
+                        colorRes = R.color.textColor,
+                    ),
+                    SpannableUtils.StyledText(
+                        text = getString(R.string.sign_up),
+                        colorRes = R.color.primary,
+                        isBold = true,
+                        onClick = {
+                            showSignUpOptions()
+                        }
+                    )
+                )
+            )
+
+
+
+object SpannableUtils {
+
+    data class StyledText(
+        val text: String,
+        @ColorRes val colorRes: Int? = null,
+        val sizeInSp: Float? = null,
+        val isBold: Boolean = false,
+        val isItalic: Boolean = false,
+        val onClick: (() -> Unit)? = null
+    )
+
+    fun applyStyledText(
+        context: Context,
+        textView: TextView,
+        parts: List<StyledText>
+    ) {
+        val spannable = SpannableStringBuilder()
+        var startIndex = 0
+
+        parts.forEach { part ->
+            spannable.append(part.text)
+            val endIndex = startIndex + part.text.length
+
+            part.colorRes?.let { colorRes ->
+                val color = ContextCompat.getColor(context, colorRes)
+                spannable.setSpan(
+                    ForegroundColorSpan(color),
+                    startIndex,
+                    endIndex,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+
+            part.sizeInSp?.let { size ->
+                spannable.setSpan(
+                    AbsoluteSizeSpan(size.toInt(), true),
+                    startIndex,
+                    endIndex,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+
+            when {
+                part.isBold && part.isItalic -> {
+                    spannable.setSpan(
+                        StyleSpan(Typeface.BOLD_ITALIC),
+                        startIndex,
+                        endIndex,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+
+                part.isBold -> {
+                    spannable.setSpan(
+                        StyleSpan(Typeface.BOLD),
+                        startIndex,
+                        endIndex,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+
+                part.isItalic -> {
+                    spannable.setSpan(
+                        StyleSpan(Typeface.ITALIC),
+                        startIndex,
+                        endIndex,
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
+            }
+
+            part.onClick?.let { onClick ->
+                spannable.setSpan(
+                    object : ClickableSpan() {
+                        override fun onClick(widget: View) = onClick()
+                        override fun updateDrawState(ds: TextPaint) {
+                            ds.isUnderlineText = false
+                        }
+                    },
+                    startIndex,
+                    endIndex,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
+
+            startIndex = endIndex
+        }
+
+        textView.text = spannable
+        textView.movementMethod = LinkMovementMethod.getInstance()
+        textView.linksClickable = true
+        textView.highlightColor = Color.TRANSPARENT
+    }
+}
